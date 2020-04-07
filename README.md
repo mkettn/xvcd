@@ -1,8 +1,10 @@
-# xvcd
+# xvcd for BCP
 
 This is a daemon that listens to "xilinx_xvc" (xilinx virtual cable)
 traffic and operates JTAG over an FTDI in either bitbang mode or in
 MPSSE mode.
+
+This branch is specific to the BCP which has a built-in FTDI device.
 
 The bitbang mode is the original code with slight modifications with
 changes to the arguments of the interface functions. After building,

@@ -43,14 +43,19 @@
 
 ///////////////////////////////////////////////
 
-#define PORT_TCK            0x01
-#define PORT_TDI            0x02
-#define PORT_TDO            0x04
-#define PORT_TMS            0x08
-#define PORT_MISC           0x90
-#define IO_OUTPUT (PORT_MISC|PORT_TCK|PORT_TDI|PORT_TMS)
+#define PORT_TCK            (0x01)
+#define PORT_TDI            (0x02)
+#define PORT_TDO            (0x04)
+#define PORT_TMS            (0x08)
+#define PORT_OE             (0x10)
+#define PORT_SRSTn          (0x20)
+#define PORT_GP             (0x40)
+#define PORT_RTCK           (0x80)
+#define IO_OUTPUT_IDLE      (PORT_GP)           // Keep JTAG as inputs so external programmer can work
+#define IO_OUTPUT_WORK      (PORT_GP|PORT_SRSTn|PORT_OE|PORT_TCK|PORT_TDI|PORT_TMS)
 
-#define IO_DEFAULT_OUT     (0xe0)               /* Found to work best for some FTDI implementations */
+//@@@#define IO_DEFAULT_OUT     (0xe0)               /* Found to work best for some FTDI implementations */
+#define IO_DEFAULT_OUT      (IO_OUTPUT_IDLE|PORT_OE)         /* Found to work best for some FTDI implementations */
 
 // MPSSE Command Bytes (taken from pyftdi)
 #define WRITE_BYTES_PVE_MSB  (0x10)
@@ -663,7 +668,7 @@ int io_init(int vendor, int product, const char* serial, unsigned int index, uns
         printf("\n\n");
     }
 
-    // Get the expected FIFO Siz of this FTDI device
+    // Get the expected FIFO Size of this FTDI device
     fifo_sz = io_get_fifo_sizes(&ftdi);
 
     //NOTE: Not sure if this is needed, but it seems like a good idea
@@ -708,7 +713,7 @@ int io_init(int vendor, int product, const char* serial, unsigned int index, uns
 
 #if 0
     // RESET FTDI - seems to cause more harm (I/Os reset) than good, so skip.
-    res = ftdi_set_bitmode(&ftdi, IO_OUTPUT, BITMODE_RESET);
+    res = ftdi_set_bitmode(&ftdi, IO_OUTPUT_IDLE, BITMODE_RESET);
 
     if (res < 0)
     {
@@ -750,7 +755,7 @@ int io_init(int vendor, int product, const char* serial, unsigned int index, uns
     }
 
     // Enable MPSSE mode
-    res = ftdi_set_bitmode(&ftdi, IO_OUTPUT, BITMODE_MPSSE);
+    res = ftdi_set_bitmode(&ftdi, IO_OUTPUT_WORK, BITMODE_MPSSE);
 
     if (res < 0)
     {
@@ -784,7 +789,7 @@ int io_init(int vendor, int product, const char* serial, unsigned int index, uns
     if (vlevel > 2) printf("Setting initial outputs\n");
     buf[0] = SET_BITS_LOW;
     buf[1] = IO_DEFAULT_OUT;
-    buf[2] = IO_OUTPUT;
+    buf[2] = IO_OUTPUT_WORK;
     len = 3;
     res = ftdi_write_data(&ftdi, buf, len);
     if (res != len)
