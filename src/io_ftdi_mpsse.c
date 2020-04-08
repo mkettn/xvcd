@@ -51,11 +51,11 @@
 #define PORT_SRSTn          (0x20)
 #define PORT_GP             (0x40)
 #define PORT_RTCK           (0x80)
-#define IO_OUTPUT_IDLE      (PORT_GP)           // Keep JTAG as inputs so external programmer can work
+#define IO_OUTPUT_IDLE      (PORT_GP|PORT_SRSTn)  // Keep JTAG as inputs so external programmer can work
 #define IO_OUTPUT_WORK      (PORT_GP|PORT_SRSTn|PORT_OE|PORT_TCK|PORT_TDI|PORT_TMS)
 
 //@@@#define IO_DEFAULT_OUT     (0xe0)               /* Found to work best for some FTDI implementations */
-#define IO_DEFAULT_OUT      (IO_OUTPUT_IDLE|PORT_OE)         /* Found to work best for some FTDI implementations */
+#define IO_DEFAULT_OUT      (PORT_SRSTn)  
 
 // MPSSE Command Bytes (taken from pyftdi)
 #define WRITE_BYTES_PVE_MSB  (0x10)
@@ -459,6 +459,62 @@ int io_build_cmd_bytes(const unsigned char *TMSp, const unsigned char *TDIp, int
 }
 
 
+// outstate - either IDLE for when JTAG outs are to be released or WORK when want to drive JTAG
+//
+// verbosity - verbosity level
+//
+// return: if error, return an error code <> 0
+//         if success, return 0
+//
+int io_set_outputs(enum io_outputs_state outstate, int verbosity)
+{
+    unsigned char buf[4];  
+    int res, len;
+
+    // Update state of outputs to the default
+    if (verbosity > 0) {
+      if (outstate == WORK) {
+	printf("Setting outputs for JTAG\n");
+      } else {
+	printf("Setting outputs to IDLE, releasing JTAG outputs\n");
+      }
+    }
+    
+    buf[0] = SET_BITS_LOW;
+    buf[1] = IO_DEFAULT_OUT;
+
+    if (outstate == WORK) {
+      buf[2] = IO_OUTPUT_WORK;
+    } else {
+      buf[2] = IO_OUTPUT_IDLE;
+    }
+    
+    len = 3;
+    res = ftdi_write_data(&ftdi, buf, len);
+    if (res != len)
+    {
+        fprintf(stderr, "ftdi_write_data() for 0x%x: %d (%s)\n", buf[0], res, ftdi_get_error_string(&ftdi));
+        io_close();
+        return 1;
+    }
+
+    if (verbosity > 0) {
+      unsigned char pins;
+      res = ftdi_read_pins(&ftdi, &pins);
+      if (res == 0) {
+	printf("FTDI Read Pins: 0x%02x\n", pins);
+      } else {
+        fprintf(stderr, "Error during ftdi_read_pins(): %d\n",res);
+        return -252;
+      }
+    }   
+       
+    // Return success
+    return 0;
+}
+
+
+
 // frequency - desired JTAG TCK frequency in Hz
 //
 // return: if error, return an error code < 0
@@ -755,7 +811,7 @@ int io_init(int vendor, int product, const char* serial, unsigned int index, uns
     }
 
     // Enable MPSSE mode
-    res = ftdi_set_bitmode(&ftdi, IO_OUTPUT_WORK, BITMODE_MPSSE);
+    res = ftdi_set_bitmode(&ftdi, IO_OUTPUT_IDLE, BITMODE_MPSSE);
 
     if (res < 0)
     {
@@ -785,18 +841,9 @@ int io_init(int vendor, int product, const char* serial, unsigned int index, uns
         return 1;
     }
 
-    // Update state of outputs to the default
-    if (vlevel > 2) printf("Setting initial outputs\n");
-    buf[0] = SET_BITS_LOW;
-    buf[1] = IO_DEFAULT_OUT;
-    buf[2] = IO_OUTPUT_WORK;
-    len = 3;
-    res = ftdi_write_data(&ftdi, buf, len);
-    if (res != len)
-    {
-        fprintf(stderr, "ftdi_write_data() for 0x%x: %d (%s)\n", buf[0], res, ftdi_get_error_string(&ftdi));
-        io_close();
-        return 1;
+    // Update state of outputs to the IDLE default
+    if ((res = io_set_outputs(IDLE, vlevel)) != 0) {
+      return res;
     }
 
     // Disable loopback mode

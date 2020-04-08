@@ -169,6 +169,24 @@ int io_init(int vendor, int product, const char* serial, unsigned int index, uns
 	return 0;
 }
 
+// outstate - either IDLE for when JTAG outs are to be released or WORK when want to drive JTAG
+//
+// verbosity - verbosity level
+//
+// return: if error, return an error code <> 0
+//         if success, return 0
+//
+int io_set_outputs(enum io_outputs_state outstate, int verbosity)
+{
+
+  // NOT currently used in this implementation. If want to use it, set up OUTPUTS based on outstate
+
+  // Return success
+  return 0;
+}
+
+
+
 // period - desired JTAG TCK period in ns
 //
 // return: if error, return an error code < 0

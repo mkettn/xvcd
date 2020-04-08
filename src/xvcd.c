@@ -433,7 +433,7 @@ int main(int argc, char **argv)
 			fprintf(stderr, "              and product IDs on host. \'lsusb -v\' can be used to find the serial numbers.\n");
 			fprintf(stderr, "          -I: USB index, use to select the desired FTDI device if multiple devices with same vendor\n");
 			fprintf(stderr, "              and product IDs on host. Can be used instead of -S but -S is more definitive. (default = 0)\n");
-			fprintf(stderr, "          -i: interface, select which \'port\' on the selected device to use if multiple port device. (default = 0)\n");
+			fprintf(stderr, "          -i: interface, select which \'port\' if a multiple port device. A=0, B=1, C=2, D=3 (default = 0)\n");
 			fprintf(stderr, "          -f: frequency in Hz, force TCK frequency. If set to 0, set from settck commands sent by client. (default = 0)\n");
 			fprintf(stderr, "          -p: TCP port, TCP port to listen for connections from client (default = %d)\n\n", port);
 			return 1;
@@ -556,6 +556,12 @@ int main(int argc, char **argv)
 						}
 						FD_SET(newfd, &conn);
 					}
+
+					// Update state of outputs to do WORK
+					if (io_set_outputs(WORK, vlevel) != 0) {
+					  perror("FTDI CONFIG OUTPUT error");
+					}
+
 				}
 				//
 				// Otherwise, do work.
@@ -570,6 +576,11 @@ int main(int argc, char **argv)
 						printf("connection closed - fd %d\n", fd);
 					close(fd);
 					FD_CLR(fd, &conn);
+
+					// Update state of outputs back to IDLE
+					if (io_set_outputs(IDLE, vlevel) != 0) {
+					  perror("FTDI CONFIG OUTPUT error");
+					}					
 				}
 			}
 			//
@@ -581,6 +592,10 @@ int main(int argc, char **argv)
 					printf("connection aborted - fd %d\n", fd);
 				close(fd);
 				FD_CLR(fd, &conn);
+
+				// Update state of outputs back to IDLE
+				io_set_outputs(IDLE, vlevel);
+					
 				if (fd == s)
 					break;
 			}
