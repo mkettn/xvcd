@@ -26,6 +26,14 @@ mode but sets up the FTDI I/O in a way specific for use on the
 BCP. Still use `xvcdmp` if using this with a generic FTDI cable or
 development board.
 
+If you do not desire to use this with a BCP board, it may be best to
+revert to
+[v1.0](https://github.com/sgoadhouse/xvcd/releases/tag/v1.0). Only the
+new `xvcdbcp` executable has been tested. `xvcdbb` and `xvcdmp` are
+expected to function as before but the code changes made to get the
+BCP specific code inserted could have an unintended consequence. There
+was just not time to fully test those older executables.
+
 If having trouble connecting to the JTAG target, try forcing the
 frequency lower with the -f option. However, this is only used by the
 MPSSE mode version.
