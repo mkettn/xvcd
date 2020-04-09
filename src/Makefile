@@ -69,7 +69,7 @@ else
    LDFLAGS=$(BUILD_FLAGS) -lftdi1
 endif
 
-all: $(O) $(O)/xvcdbb $(O)/xvcdmp
+all: $(O) $(O)/xvcdbb $(O)/xvcdmp $(O)/xvcdbcp
 
 .PHONY: $(O) $(OBJ)
 
@@ -84,6 +84,9 @@ $(O)/xvcdbb: $(OBJ)/io_ftdi.o $(OBJ)/xvcd.o
 
 $(O)/xvcdmp: $(OBJ)/io_ftdi_mpsse.o $(OBJ)/xvcd.o
 	$(CC) -o $@ $^ $(LDFLAGS)
+
+$(O)/xvcdbcp: io_ftdi_mpsse.c xvcd.c io_ftdi.h $(OBJ)/xvcd.o
+	$(CC) -o $@ io_ftdi_mpsse.c xvcd.c $(CFLAGS) -DBCP $(LDFLAGS)
 
 $(OBJ)/%.o: %.c $(OBJ) io_ftdi.h
 	$(CC) -c $< -o $@ $(CFLAGS)

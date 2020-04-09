@@ -47,15 +47,23 @@
 #define PORT_TDI            (0x02)
 #define PORT_TDO            (0x04)
 #define PORT_TMS            (0x08)
+
+#ifdef BCP
+// BCP
 #define PORT_OE             (0x10)
 #define PORT_SRSTn          (0x20)
 #define PORT_GP             (0x40)
 #define PORT_RTCK           (0x80)
 #define IO_OUTPUT_IDLE      (PORT_GP|PORT_SRSTn)  // Keep JTAG as inputs so external programmer can work
 #define IO_OUTPUT_WORK      (PORT_GP|PORT_SRSTn|PORT_OE|PORT_TCK|PORT_TDI|PORT_TMS)
-
-//@@@#define IO_DEFAULT_OUT     (0xe0)               /* Found to work best for some FTDI implementations */
 #define IO_DEFAULT_OUT      (PORT_SRSTn)  
+#else
+// Generic FTDI board
+#define PORT_MISC           (0x90)
+#define IO_OUTPUT_IDLE      (PORT_MISC|PORT_TCK|PORT_TDI|PORT_TMS)
+#define IO_OUTPUT_WORK      (IO_OUTPUT_IDLE)     /* No difference between IDLE and WORK */
+#define IO_DEFAULT_OUT      (0xe0)               /* Found to work best for some FTDI implementations */
+#endif
 
 // MPSSE Command Bytes (taken from pyftdi)
 #define WRITE_BYTES_PVE_MSB  (0x10)
@@ -466,6 +474,85 @@ int io_build_cmd_bytes(const unsigned char *TMSp, const unsigned char *TDIp, int
 // return: if error, return an error code <> 0
 //         if success, return 0
 //
+#ifdef BCP
+// For the BCP, always first switch to IDLE, so can read the OE
+// pin. If it is low and requested to go to WORK, refuse to go to WORK
+// because someone has a programmer plugged in. Otherwise, can go to WORK
+int io_set_outputs(enum io_outputs_state outstate, int verbosity)
+{
+    unsigned char buf[4];  
+    unsigned char pins;
+    int res, len;
+
+    // Update state of outputs to the default
+    if (verbosity > 0) {
+      printf("Setting I/O direction for IDLE\n");
+    }
+
+    // First, set to IDLE where the OE pin is an input. If requested
+    // to go to WORK, then read the OE pin and only switch to WORK if
+    // OE is high.
+    buf[0] = SET_BITS_LOW;
+    buf[1] = IO_DEFAULT_OUT;
+    buf[2] = IO_OUTPUT_IDLE;
+
+    len = 3;
+    res = ftdi_write_data(&ftdi, buf, len);
+    if (res != len)
+    {
+        fprintf(stderr, "ftdi_write_data() for 0x%x: %d (%s)\n", buf[0], res, ftdi_get_error_string(&ftdi));
+        io_close();
+        return 1;
+    }
+
+    res = ftdi_read_pins(&ftdi, &pins);
+    if (res != 0) {
+      if (verbosity > 0) fprintf(stderr, "Error during ftdi_read_pins(): %d\n",res);
+      return -252;
+    }
+
+    if (outstate == WORK) {
+      // If requested to move to WORK mode, check that OE is high which
+      // indicates that no programmer is plugged in
+      if (pins & PORT_OE) {
+	// No other programmer plugged in so continue to set outputs for WORK
+	buf[0] = SET_BITS_LOW;
+	buf[1] = IO_DEFAULT_OUT;
+	buf[2] = IO_OUTPUT_WORK;
+
+	len = 3;
+	res = ftdi_write_data(&ftdi, buf, len);
+	if (res != len)
+	  {
+	    fprintf(stderr, "ftdi_write_data() for 0x%x: %d (%s)\n", buf[0], res, ftdi_get_error_string(&ftdi));
+	    io_close();
+	    return 1;
+	  }
+	
+	if (verbosity > 0) printf("Changed I/O direction for JTAG WORK\n");
+
+	// read pins to report them after last change to I/O direction
+	res = ftdi_read_pins(&ftdi, &pins);
+	if (res != 0) {
+	  if (verbosity > 0) fprintf(stderr, "Error during ftdi_read_pins(): %d\n",res);
+	  return -252;
+	}
+      } else {
+	if (verbosity > 0) printf("Unable to change I/O direction for JTAG WORK due to conflict with JTAG port.\n");
+      }
+    }      
+
+    if (verbosity > 0) {
+      if (res == 0) {
+	printf("FTDI Read Pins: 0x%02x\n", pins);
+      }
+    }   
+       
+    // Return success
+    return 0;
+}
+#else
+// If NOT BCP, do a simple io_set_outputs even though IO_OUTPUT_IDLE may be the same as IO_OUTPUT_WORK
 int io_set_outputs(enum io_outputs_state outstate, int verbosity)
 {
     unsigned char buf[4];  
@@ -473,11 +560,7 @@ int io_set_outputs(enum io_outputs_state outstate, int verbosity)
 
     // Update state of outputs to the default
     if (verbosity > 0) {
-      if (outstate == WORK) {
-	printf("Setting outputs for JTAG\n");
-      } else {
-	printf("Setting outputs to IDLE, releasing JTAG outputs\n");
-      }
+      printf("Setting I/O direction\n");
     }
     
     buf[0] = SET_BITS_LOW;
@@ -512,7 +595,7 @@ int io_set_outputs(enum io_outputs_state outstate, int verbosity)
     // Return success
     return 0;
 }
-
+#endif
 
 
 // frequency - desired JTAG TCK frequency in Hz
