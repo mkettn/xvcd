@@ -912,6 +912,19 @@ int io_init(int vendor, int product, const char* serial, unsigned int index, uns
         return 1;
     }
 
+    // Disable Adaptive Clocking (RTCK)
+    //
+    // I tried Adaptive clocking with EN_ADAPTIVE and it did not work for Xilinx JTAG accesses
+    buf[0] = DIS_ADAPTIVE;
+    len = 1;
+    res = ftdi_write_data(&ftdi, buf, len);
+    if (res != len)
+    {
+        fprintf(stderr, "ftdi_write_data() for 0x%x: %d (%s)\n", buf[0], res, ftdi_get_error_string(&ftdi));
+        io_close();
+        return 1;
+    }
+
     if (frequency == 0) {
         frequency = FTDI_TCK_DEFAULT_FREQ;
     }
