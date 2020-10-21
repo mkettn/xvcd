@@ -205,6 +205,10 @@ int handle_data(int fd, unsigned long frequency)
 		unsigned char buffer[VECTOR_IN_SZ], result[VECTOR_IN_SZ/2];
 		memset(cmd, 0, 16);
 
+		// Does not seem to get automatically flushed when executing from a bash script
+		fflush(stdout);
+		fflush(stderr);
+		
 		if (sread(fd, cmd, 2) != 1)
 			return 1;
 
@@ -510,6 +514,10 @@ int main(int argc, char **argv)
 		fd_set read = conn, except = conn;
 		int fd;
 		
+		// Does not seem to get automatically flushed when executing from a bash script
+		fflush(stdout);
+		fflush(stderr);
+
 		//
 		// Look for work to do.
 		//
