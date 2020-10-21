@@ -6,6 +6,8 @@ MPSSE mode.
 
 This branch is specific to the BCP which has a built-in FTDI device.
 
+** This is an OLD branch and likely what you want is the default ftdi branch and using BCP #define to differentiate code with a seperate executable for the BCP **
+
 The bitbang mode is the original code with slight modifications with
 changes to the arguments of the interface functions. After building,
 the executeable that uses bitbang mode is called "xvcdbb". From the
