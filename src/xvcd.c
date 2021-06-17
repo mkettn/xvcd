@@ -34,7 +34,7 @@
 //
 // NOTE: Did test this with the value 4096 with a FT4232H device and
 // the Xilinx device failed to program.
-#define VECTOR_IN_SZ 2048
+static unsigned int VECTOR_IN_SZ = 2048;
 
 static int jtag_state;
 static int vlevel = 0;
@@ -197,7 +197,8 @@ int handle_data(int fd, unsigned long frequency)
 	int i;
 	int seen_tlr = 0;
 
-	const char xvcInfo[] = "xvcServer_v1.0:" TOSTRING(VECTOR_IN_SZ) "\n";
+	char xvcInfo[30];
+	sprintf(xvcInfo, "xvcServer_v1.0: %u\n", VECTOR_IN_SZ);
 
 	do
 	{
@@ -400,7 +401,7 @@ int main(int argc, char **argv)
 	
 	opterr = 0;
 	
-	while ((c = getopt(argc, argv, "vV:P:S:I:i:p:f:")) != -1)
+	while ((c = getopt(argc, argv, "vV:P:S:I:i:p:f:s:")) != -1)
 		switch (c)
 		{
 		case 'p':
@@ -414,6 +415,9 @@ int main(int argc, char **argv)
 			break;
 		case 'S':
 			serial = optarg;
+			break;
+		case 's':
+			VECTOR_IN_SZ = strtoul(optarg, NULL, 0);
 			break;
 		case 'I':
 			index = strtoul(optarg, NULL, 0);
@@ -435,6 +439,7 @@ int main(int argc, char **argv)
 			fprintf(stderr, "          -P: product ID, use to select the desired FTDI device if multiple on host. (default = 0x6010)\n");
 			fprintf(stderr, "          -S: serial number, use to select the desired FTDI device if multiple devices with same vendor\n");
 			fprintf(stderr, "              and product IDs on host. \'lsusb -v\' can be used to find the serial numbers.\n");
+			fprintf(stderr, "          -s: vector size to propagate to xilinx tools, default: %u\n", VECTOR_IN_SZ);
 			fprintf(stderr, "          -I: USB index, use to select the desired FTDI device if multiple devices with same vendor\n");
 			fprintf(stderr, "              and product IDs on host. Can be used instead of -S but -S is more definitive. (default = 0)\n");
 			fprintf(stderr, "          -i: interface, select which \'port\' if a multiple port device. A=0, B=1, C=2, D=3 (default = 0)\n");
